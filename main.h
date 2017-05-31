@@ -1,0 +1,12 @@
+#ifndef __MAIN_H__
+#define __MAIN_H__
+
+
+
+#include "threadFunc.h"
+#include "cmmbXpe.h"
+
+
+
+
+#endif
