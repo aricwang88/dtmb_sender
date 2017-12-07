@@ -383,7 +383,7 @@ void CMMB_DTMB_MUX::NetInit(thread_params_t* pthrParam)
     //gaddrOut.sin_port = htons(pThreadParams->mux_port);	
 
 	//=================================================
-	BOOL boolFlag = m_sUdp.Open(pThreadParams->pszControlIP, 5000);//192.168.110.120
+	BOOL boolFlag = m_sUdp.Open(pThreadParams->pszControlIP, 5000);
 	if(!boolFlag)
 	{
 		printf("Can't bind the ip\n");
@@ -1219,7 +1219,7 @@ BOOL CMMB_DTMB_MUX::CreateSndFile(void)
 	int ii=0;	
 	ii = m_srcFileName.rfind('/');
 	UINT fnLen = m_srcFileName.length();
-	//zhanxy
+	//
 	printf("%s-> m_srcFileName: %s\n",__func__, m_srcFileName.c_str());
 	
 	if(ii>=0)
@@ -1243,6 +1243,9 @@ BOOL CMMB_DTMB_MUX::CreateSndFile(void)
 	printf("create send folder: [%s]\n", sndpath.c_str());
 	//======================================================
 	if(encryptFlag)simpleFileName += ".aes";
+	if(gkThreadParams.fec_type)simpleFileName += ".fec.0";
+
+	cout<<"simpleFileName:"<<simpleFileName<<endl;
 	//======================================================	
 	//create the xdb file
 	dstFileName  = sndpathx.c_str();
@@ -1279,7 +1282,7 @@ BOOL CMMB_DTMB_MUX::SetFormatFile(const char *fname)
 {
 	m_srcFileName = fname;
 	CreateSndFile();
-	EncryptFile();	
+	EncryptFile();
 	return TRUE;
 }
 
@@ -1300,7 +1303,6 @@ int CMMB_DTMB_MUX::FileCheckSum(void)
    U32 read_size = 0;
 
    if(m_encryptFile.empty())return -1;
-
    FILE *fp;
    U32 sum = 0;
    fp = fopen(m_encryptFile.c_str(), "r");
@@ -1362,6 +1364,7 @@ int CMMB_DTMB_MUX::EncryptFile(void)
 	dstName += fxName;
 	dstName += ".aes";
 	m_encryptFile = dstName;
+//	cout<<"1367   m_encryptFile:"<<m_encryptFile<<endl;///figure/ftproot/sndtmp/0.tar/0.tar.aes
 	//==========================================================
 	ret2 = AesSetKey(&enc, commonKey, AES_BLOCK_SIZE, commonIv, AES_ENCRYPTION);
 	//==========================================================	
@@ -1392,13 +1395,48 @@ int CMMB_DTMB_MUX::EncryptFile(void)
 	srcFilex.close();
 	dstFilex.close();
 	sleep(1);
+	FecEncode();
 	FileCheckSum();	
 
 	return 0;
 }
 
+int CMMB_DTMB_MUX::FecEncode()
+{
+	int    fec_type  = gkThreadParams.fec_type;
+	int    fec_width = gkThreadParams.fec_width;
+	int    fec_rate  = gkThreadParams.fec_rate;
+//	int    fec_num   = gkThreadParams.fec_num;
 
+	if(fec_type == 0)
+	{
+		cout<<"Without FecEncode !"<<endl;
+		return 1;
+	}
+	
+	char cmdline[1024] = {0};
+	string src_file;
+	string fec_file;
+ 
+	if(encryptFlag)   
+		src_file = m_encryptFile;   //sndtmp/xx.tar.aes
+	else	
+		src_file = m_srcFileName; //bsfile/xx.tar
+	
+	fec_file = src_file + ".fec.0";
+		
+	cout<<"m_encryptFile is: "<<m_encryptFile<<endl; 
+	cout<<"src_file is: "<<src_file<<endl;  
+	cout<<"fec_file name is: "<<fec_file<<endl;
+	
+	memset(cmdline, 0, sizeof(cmdline));
+	sprintf(cmdline, "sarifec -S -i:%s -o:%s -x:%d -K:%d -X:%d -T:173", 
+		src_file.c_str(), fec_file.c_str(), fec_type, fec_width, fec_rate);
+	system(cmdline);
 
+	cout<<cmdline<<endl;
+	return 0;
+}
 
 void CMMB_DTMB_MUX::FormatChange(UINT idx)
 {		
@@ -1437,9 +1475,11 @@ void CMMB_DTMB_MUX::FormatChange(UINT idx)
 		packFileName = m_encryptFile;
 	else
 		packFileName = m_srcFileName;
-
 	if(packFileName.empty())return;
-
+	
+	if(gkThreadParams.fec_type)packFileName += ".fec.0";
+	
+	cout<<" in FormatChange-> packFileName"<<packFileName<<endl;
 	//==============================
 	rsHandle = (PRS_PARAM_t)init_rs_char(RS_SYMSIZE, 0x11d, RS_FCR, RS_PRIM, RS_T2,RS_PAD);
 

@@ -32,6 +32,7 @@ void getLocalIp(char *ipbuf)
 	char buf[10];
 	bzero(buf, sizeof(buf));	
 	fd = popen("ifconfig | grep 255.255 | cut -d\":\" -f2 | cut -d\" \" -f1", "r");
+//	fd = popen("ifconfig | grep 'inet addr:' | grep Bcast | awk '{print $2}' | awk -F: '{print $2}'", "r");
 	//bzero(buf, sizeof(buf));
 	fread(ipbuf, 1, 16, fd);
 	pclose(fd);
@@ -109,14 +110,20 @@ void loadPublicCfg(void)
 	gkThreadParams.xpe_size = GetPrivateProfileInt("ServiceDataEncap", "LLDP_SIZE", 1024, CFG_FILE);
 	gkThreadParams.udp_size = GetPrivateProfileInt("ServiceDataEncap", "UDP_SIZE", 1024, CFG_FILE);
 
-	//-----------------for sarifec   zxy--------1219------------
+	//-----------------for sarifec   ----------------
 	gkThreadParams.fec_file_send_count = GetPrivateProfileInt("ServiceCfg", "FecFileSendCount", 1, CFG_FILE);
-	fecConfig.fec_type= GetPrivateProfileInt("ServiceCfg", "FecType", 5, CFG_FILE);
-	fecConfig.fec_width= GetPrivateProfileInt("ServiceCfg", "FecWidth", 64, CFG_FILE);
-	fecConfig.fec_rate= GetPrivateProfileInt("ServiceCfg", "FecRate", 200, CFG_FILE);
-	fecConfig.fec_num= GetPrivateProfileInt("ServiceCfg", "FecNum", 1, CFG_FILE);
+	gkThreadParams.fec_type= GetPrivateProfileInt("ServiceCfg", "FecType", 5, CFG_FILE);
+	gkThreadParams.fec_width= GetPrivateProfileInt("ServiceCfg", "FecWidth", 200, CFG_FILE);
+	gkThreadParams.fec_rate= GetPrivateProfileInt("ServiceCfg", "FecRate", 50, CFG_FILE);
+	gkThreadParams.fec_num= GetPrivateProfileInt("ServiceCfg", "FecNum", 1, CFG_FILE);
+#if 1
 
+	fecConfig.fec_type = gkThreadParams.fec_type;
+	fecConfig.fec_width = gkThreadParams.fec_file_send_count;
+	fecConfig.fec_rate = gkThreadParams.fec_rate;
+	fecConfig.fec_num = gkThreadParams.fec_num;
 //	fecConfig.fec_los= GetPrivateProfileInt("ServiceCfg", "FecLos", 0, CFG_FILE);
+#endif
 	//-----------------for sarifec   --------------------
 
 	//跟调试相关参数
@@ -142,10 +149,12 @@ void loadPublicCfg(void)
 	printf("muxer ip: %s:%d\n", gkThreadParams.pszMuxIP, gkThreadParams.mux_port);
 	//=======================================================================
 
-	//=========zxy=======1220========
+	//=======add===
 	printf("#####   send file times:%d   ####\n", gkThreadParams.fec_file_send_count);
-	printf("fec_type:%d, fec_rate:%d, fec_width:%d, fec_num:%d\n",fecConfig.fec_type, fecConfig.fec_rate,fecConfig.fec_width,fecConfig.fec_num);
+//	printf("fec_type:%d, fec_rate:%d, fec_width:%d, fec_num:%d\n",fecConfig.fec_type, fecConfig.fec_rate,fecConfig.fec_width,fecConfig.fec_num);
 	
+	printf("    fec_type:%d, fec_rate:%d, fec_width:%d, fec_num:%d\n",
+		gkThreadParams.fec_type, gkThreadParams.fec_rate, gkThreadParams.fec_width, gkThreadParams.fec_num);
 }
 
 
@@ -163,7 +172,7 @@ void *XPE_file_thread(void *arg)
 	int iix = 0;	
 	int sendCou = 0;
 	string fnStr;
-
+	string real_send_fname;
 	//int cmdCount = 0;
 
 	iix=iix;
@@ -237,7 +246,6 @@ void *XPE_file_thread(void *arg)
 					fnStr = pServiceParam[0].pszFileName;					
 
 					dtmbCmmbMux.SetFormatFile(pServiceParam[0].pszFileName);
-
 					//=========================================
 					//=========================================
 					//=========================================
@@ -265,7 +273,7 @@ void *XPE_file_thread(void *arg)
 								printf("Generating the dest file...\n");
 								//===========================
 								//format dst file
-								dtmbCmmbMux.FormatChange(0);							
+								dtmbCmmbMux.FormatChange(0);
 								//continue;
 							}
 
@@ -273,12 +281,9 @@ void *XPE_file_thread(void *arg)
 							//================================
 							//Send file
 					//		while(sendCou < 3)
-						//----------zhanxy-------------------
 							while(sendCou < gkThreadParams.fec_file_send_count)
 							{
 								dtmbCmmbMux.SendFile(dtmbCmmbMux.GetSndFile().c_str());
-								//==================================================
-
 								sendCou++;
 
 								printf("+++++++++++++++++++++++++++++++++++++++++++++++++++\n");
@@ -287,12 +292,9 @@ void *XPE_file_thread(void *arg)
 
 								sleep(3);
 							}
-						//	dtmbCmmbMux.SendFile("/work/app/null_package.tar.ts");
+							system("rm -rf /figure/ftproot/sndtmp/*.tar*");
 							sleep(5);
 							sendCou = 0;
-							
-
-							//==================================================
 												
 						}
 					}
@@ -303,16 +305,21 @@ void *XPE_file_thread(void *arg)
 					}
 				}
 
-				//*/
-
 				//=================================
 				dataParse.PopFileUnit();
 				delete pSendFileManage;
 				pSendFileManage=NULL;
 
 				printf("%s()->size2 is %d, %d\n", __func__, dataParse.GetFileCount(), dataParse.GetFileCount());
-				sleep(1);
-			//	sleep(30);//---zxy--add
+				
+				if(gkThreadParams.fec_num > 1)
+				{
+					sleep(30);
+				}
+				else
+				{
+					sleep(1);
+				}
 			}
 			
 		}
@@ -326,12 +333,9 @@ void *XPE_file_thread(void *arg)
 	
 //---------------------------------------------------------------------------------------------------------------------------------------------------//
 	//pThreadParams->recv_stop = 1;
-//	fclose(file_debug);
 
 	printf("%s stop\n", prompt_txt);
 
-//---------------------------------------mao-------------------------------------------------------//
-	//closesocket(gsockUdp);
 	
 //-------------------------------------------------------------------------------------------------------------------//
 
@@ -344,10 +348,7 @@ void *XPE_file_thread(void *arg)
 void *web_udp_thread(void *arg)
 {	
 	BYTE rcvBuf[65535];
-	//int 	rcvLen=0;
 	int  nRecvSize = 0;
-	//int rcvSock;	
-	//string str;
 
 	printf("%s()->start\n", __func__);
 
@@ -372,11 +373,9 @@ void *web_process_thread(void *arg)
 	int readPtr=0;
 	int writePtr=0;
 	int cmdCount=0;
-	int ii = 0;
-//	int cnt = 2;//code file number
 
-	int cnt = fecConfig.fec_num;
 	PSEND_FILECMD_PARAM pFileCmdParam = NULL;
+	int cnt = fecConfig.fec_num;
 	
 	while(1)
 	{
@@ -391,7 +390,10 @@ void *web_process_thread(void *arg)
 						
 			printf("[%s]: %s\n", __func__, fileCmd.c_str());
 
-			dataParse.cmdParser(fileCmd);			
+			for(int ii=0; ii<cnt; ii++)
+			{
+				dataParse.cmdParser(fileCmd);
+			}			
 		}
 
 		//==========================================
@@ -409,16 +411,10 @@ void *web_process_thread(void *arg)
 			
 				//pFileCmdParam = parseLink.front();	
 				pFileCmdParam = dataParse.GetDataUnit();	
-				printf("---------------------------\n");
-				dataParse.DispOneData(pFileCmdParam);//
-				printf("---------------------------\n");
-				for(ii=0; ii<cnt; ii++) //zxy  four feccode file
-				{
-
-					//=================================				
-					dataParse.GenerateSendFile(pFileCmdParam,ii,fecConfig);
-					//=================================
-				}
+				dataParse.DispOneData(pFileCmdParam);
+								
+				dataParse.GenerateSendFile(pFileCmdParam, fecConfig);
+				
 				dataParse.PopDataUnit();
 				delete pFileCmdParam;
 				pFileCmdParam=NULL;

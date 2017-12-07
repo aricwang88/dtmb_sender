@@ -86,7 +86,7 @@ public:
 	PSEND_FILECMD_PARAM GetDataUnit(void);
 	void PopDataUnit(void);
 	int  DataEmpty(void);
-	void GenerateSendFile(PSEND_FILECMD_PARAM cmdParam,int count, FECCONFIG fecConfig);
+	void GenerateSendFile(PSEND_FILECMD_PARAM cmdParam,FECCONFIG fecConfig);
 	int  GetFileCount(void);
 	int FileEmpty(void);
 	void PopFileUnit(void);

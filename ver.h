@@ -2,7 +2,7 @@
 #define __VER_H__
 
 
-#define VERSION  0x01000002
+#define VERSION  0x01000003
 
 
 //==========================

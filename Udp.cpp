@@ -75,7 +75,7 @@ BOOL Udp::Connect(char *connectIp, int connectPort, char *bindIp)
 
 	memset(&m_ConnectAddr, 0, sizeof(m_ConnectAddr));
 
-	if (IN_MULTICAST(ntohl(inet_addr(connectIp))))//判断是否为组播地址
+	if (IN_MULTICAST(ntohl(inet_addr(connectIp))))
 	{
 		i_val = 1;
 		error =  setsockopt(m_Socket, IPPROTO_IP, IP_MULTICAST_LOOP, (char*)&i_val, sizeof(i_val) );
@@ -84,10 +84,9 @@ BOOL Udp::Connect(char *connectIp, int connectPort, char *bindIp)
 	}	
 
 	m_ConnectAddr.sin_family = AF_INET;
-	m_ConnectAddr.sin_port = htons(connectPort);//9010
-	m_ConnectAddr.sin_addr.s_addr = inet_addr(connectIp);//224.12.34.56	
+	m_ConnectAddr.sin_port = htons(connectPort);
+	m_ConnectAddr.sin_addr.s_addr = inet_addr(connectIp);	
 
-	//udp使用connect,定向发送数据，节省连接时间，可以直接使用tcp的send、recv
 	connect(m_Socket, (SOCKADDR*)&m_ConnectAddr, sizeof(m_ConnectAddr)) ;
 	
 	m_isConnect = TRUE;
@@ -113,7 +112,7 @@ int Udp::Write(PBYTE pBuffer, UINT16 bufferSize, UINT nTimeOut)
 	if ( !m_isOpen || !m_isConnect)
 		return -1;
 
-	iWrite = Socket::Write(pBuffer, bufferSize, nTimeOut);//tcp ->write
+	iWrite = Socket::Write(pBuffer, bufferSize, nTimeOut);
 
 	return iWrite;
 }

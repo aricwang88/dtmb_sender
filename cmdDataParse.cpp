@@ -91,15 +91,6 @@ int CmdDataParse::cmdParser(string cmd)
 
 	   m_cmdList.push_back(pSendFileCmdParam);
 
-	  	   /*
-	   printf("cmd: %s\ncmdType: %s\nmode: %s\nfilePath: %s\nfileName: %s\nrealName: %s\nlevel: %d\ngroupId: %d\nstartTime: %s\nendTime: %s\nsendTime: %s\n", pSendFileCmdParam->cmd, pSendFileCmdParam->cmdType, 
-	   	pSendFileCmdParam->mode, pSendFileCmdParam->filePath, pSendFileCmdParam->fileName,
-	   	pSendFileCmdParam->realFileName,pSendFileCmdParam->sendLevel,pSendFileCmdParam->groupId, 
-	   	pSendFileCmdParam->startTime, pSendFileCmdParam->endTime, pSendFileCmdParam->sendTime);
-	   //*/
-
-		
-	   //printf("cmdStr=%s, typeStr=%s\n", cmdStr.c_str(), typeStr.c_str());
 		 
     }  
 	else
@@ -137,81 +128,55 @@ void CmdDataParse::PopDataUnit(void)
 }
 
 
-void CmdDataParse::GenerateSendFile(PSEND_FILECMD_PARAM cmdParam, int cnt, FECCONFIG fecConfig)
+void CmdDataParse::GenerateSendFile(PSEND_FILECMD_PARAM cmdParam, FECCONFIG Config)
 {
 	if(!cmdParam)return;
 
-// string strx="";
-	char strx[1024] = {0};
+	string strx="";
+	strx = cmdParam->filePath;
+	strx += cmdParam->realFileName;
 
-//-----------------------//
-	//string str = "";
-	char str[256] = {0};
-
-	char filename[256] = {0};
-	char cmdLine[1024] = {0};
-//	char buf[8] = {0};
-	int  elen = 1000;
-	int  ret = 0;
-	elen = elen*cnt;// 0   1000  2000  3000
+//-------auto_send_100_file-----------------------//
+	char str_send_100[1024] = {0};
 
 	int    fec_type = 0;
-	int    fec_width=0;
-	int    fec_rate=0;
-	int    fec_num=0;
+	int    fec_width = 0;
+	int    fec_rate = 0;
+	int    fec_num = 0;
 	
-	fec_type = fecConfig.fec_type;
-	fec_width = fecConfig.fec_width;
-	fec_rate = fecConfig.fec_rate;
-	fec_num = fecConfig.fec_num;
+	fec_type = Config.fec_type;
+	fec_width = Config.fec_width;
+	fec_rate = Config.fec_rate;
+	fec_num = Config.fec_num;
 
-//======================================
+	static  int count =	0;
+//-------auto_send_100_file-----------------------//
+	
+
+//================initial ==========
 	PSEND_FILE_MANAGE pSendFileManage = NULL;
+
 	pSendFileManage = new SEND_FILE_MANAGE[1];
 	memset(pSendFileManage, 0, sizeof(SEND_FILE_MANAGE));
 
 	pSendFileManage->groupId = cmdParam->groupId;
 	pSendFileManage->sendLevel = cmdParam->sendLevel;
 	memcpy(pSendFileManage->sendMode, cmdParam->mode, sizeof(pSendFileManage->sendMode));	
-//=======================================
 
-	if(fec_type == 4 || fec_type == 5)//fec code
+//==================================
+	if(fec_num == 0)
 	{
-		memcpy(strx,cmdParam->filePath,sizeof(cmdParam->filePath));
+		sprintf(str_send_100, "/figure/ftproot/bsfile/%d.tar", count);
+		count++;
 
-		strcat(strx,cmdParam->realFileName);
-		memcpy(filename,cmdParam->fileName,sizeof(cmdParam->fileName));
-
-		sprintf(str,"%s.fec.%d", strx, cnt);//xx.tar.fec.0  xx.tar.fec.1   xx.tar.fec.2   xx.tar.fec.3
-	//	str = strcat(strx, buf);
-
-		memset(cmdLine, 0, sizeof(cmdLine));
-		sprintf(cmdLine,"sarifec -S -i:%s -o:%s -x:%d -X:%d -K:%d -E:%d -T:173",strx, str, fec_type, fec_rate, fec_width, elen);
-				
-		if((ret = system(cmdLine)) < 0)   system(cmdLine);
+		memcpy(pSendFileManage->fileName, str_send_100, sizeof(str_send_100));
 		
-		printf("in %s->(),cmdLine :%s\n",__func__, cmdLine);
-		
-		strcat(cmdParam->fileName,".fec.0");//change cmdParam->fileName to cmdParam->fileName.fec.0
-		strcat(cmdParam->realFileName,".fec.0");//change cmdParam->fileName to cmdParam->fileName.fec.0
-		static int once_print = 0;
-		if(!once_print)
-		{
-			printf("### cmdParam->fileName:%s ,cmdParam->realFileName:%s\n",cmdParam->fileName,cmdParam->realFileName);
-			once_print = 1;
-		}
-
-		memcpy(pSendFileManage->fileName, str, sizeof(str));//zxy
-	}
-	else if(fec_type == 0)//no fec,origin file
-	{
-		string strx="";
-		strx = cmdParam->filePath;
-		strx += cmdParam->realFileName;
-		strx.copy(pSendFileManage->fileName, strx.size());
+		if(count == fec_num) count = 0;//从0-100，第二次发送的时候仍然从0-100
 	}
 	else
-		printf("illegal fec_type !!!\n");
+	{
+		strx.copy(pSendFileManage->fileName, strx.size());
+	}
 
 	m_fileList.push_back(pSendFileManage);
 

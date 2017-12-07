@@ -127,6 +127,7 @@ public:
 	int  EncryptFile(void);
 	int  FileCheckSum(void);
 	void  SetEncryptFlag(int flag);
+	int  FecEncode();
 
 private:
 	int    m_sendType;	
